@@ -38,3 +38,33 @@ This makes the system auditable and ready for integration with dashboards, APIs,
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+```
+
+## Deploy on Render
+
+The repo includes a `render.yaml` blueprint. To deploy:
+
+1. Train the model and build the feature index locally:
+
+   ```bash
+   python train_classifier.py
+   python build_feature_index.py
+   ```
+
+   This produces `normal_sky_model.pt` and `feature_index.pt`.
+
+2. Upload both files as assets on a GitHub Release (or any HTTPS host that
+   returns the raw bytes) and copy the asset URLs.
+
+3. In Render, click **New → Blueprint** and point it at this repo. Render
+   will read `render.yaml` and prompt you for the two secret env vars:
+
+   - `MODEL_URL` — direct download URL for `normal_sky_model.pt`
+   - `FEATURE_INDEX_URL` — direct download URL for `feature_index.pt`
+
+4. Deploy. The build command installs dependencies, downloads the
+   artifacts, and pre-caches the CLIP weights so first load is fast.
+
+If `MODEL_URL` / `FEATURE_INDEX_URL` are left empty, the build still
+succeeds but trained-classifier and video modes will be unavailable; only
+the CLIP zero-shot baseline will work.
