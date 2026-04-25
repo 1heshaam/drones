@@ -3,9 +3,15 @@
 Reads MODEL_URL and FEATURE_INDEX_URL from the environment and downloads them
 to the repo root if they are set. Missing or unset URLs are skipped silently
 so the CLIP zero-shot mode can still build and run.
+
+Downloads stream into a temporary file in the destination directory and are
+atomically renamed into place on success, so a failed/aborted download never
+leaves a partial file on disk.
 """
 import os
+import shutil
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -17,15 +23,32 @@ ARTIFACTS = [
     ("FEATURE_INDEX_URL", REPO / "feature_index.pt"),
 ]
 
+DOWNLOAD_TIMEOUT_SECONDS = 120
+
 
 def download(url: str, dest: Path) -> None:
     print(f"[artifacts] downloading {dest.name} from {url}")
-    with urllib.request.urlopen(url) as resp, open(dest, "wb") as f:
-        while True:
-            chunk = resp.read(1 << 16)
-            if not chunk:
-                break
-            f.write(chunk)
+
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{dest.name}.",
+        suffix=".part",
+        dir=str(dest.parent),
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as out, urllib.request.urlopen(
+            url, timeout=DOWNLOAD_TIMEOUT_SECONDS
+        ) as resp:
+            shutil.copyfileobj(resp, out, length=1 << 16)
+        os.replace(tmp_path, dest)
+    except BaseException:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
+
     size = dest.stat().st_size
     print(f"[artifacts] saved {dest} ({size} bytes)")
 
