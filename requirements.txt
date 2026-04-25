@@ -1,0 +1,7 @@
+streamlit
+pydantic
+pillow
+torch
+transformers
+opencv-python
+pandas
