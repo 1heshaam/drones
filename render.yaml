@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: skyguard-openset
+    runtime: python
+    plan: standard
+    autoDeploy: true
+    buildCommand: |
+      pip install -r requirements.txt
+      pip install torchvision
+      python download_artifacts.py
+      python -c "from analyzer import load_clip; load_clip()"
+    startCommand: |
+      streamlit run app.py \
+        --server.port $PORT \
+        --server.address 0.0.0.0 \
+        --server.headless true \
+        --server.enableCORS false \
+        --server.enableXsrfProtection false \
+        --browser.gatherUsageStats false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MODEL_URL
+        sync: false
+      - key: FEATURE_INDEX_URL
+        sync: false
